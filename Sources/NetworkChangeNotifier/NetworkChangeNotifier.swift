@@ -12,8 +12,8 @@ import Foundation
 #error("NetworkChangeNotifier doesn't support Swift versions below 5.5.")
 #endif
 
-/// Current NetworkChangeNotifier version 0.0.3. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
-public let version = "0.0.3"
+/// Current NetworkChangeNotifier version 0.0.4. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
+public let version = "0.0.4"
 
 #if canImport(Network)
 
@@ -35,21 +35,22 @@ public class NetworkChangeNotifier {
 
     private var networkChange: NetworkChangeNotifier.NetworkChangeHandler?
 
-    private lazy var throttlerQueue = DispatchQueue(label: "com.networkChangeNotifier")
-
     private let pathMonitor = Network.NWPathMonitor()
 
     private var handlerQueue: DispatchQueue
 
-    private var throtter: SwiftyTimer.Throttler?
+    private var debouncer: SwiftyTimer.Debouncer?
 
-    private var throttleInterval: SwiftyTimer.Interval?
+    private var debouncerDelay: SwiftyTimer.Interval?
 
     private var interfaceExpiration: TimeInterval?
 
-    public init(queue: DispatchQueue = .main, throttleInterval: SwiftyTimer.Interval? = .milliseconds(2000), interfaceExpiration: TimeInterval? = nil) {
+    public init(queue: DispatchQueue = .main,
+                debouncerDelay: SwiftyTimer.Interval? = .milliseconds(2000),
+                interfaceExpiration: TimeInterval? = nil)
+    {
         self.handlerQueue = queue
-        self.throttleInterval = throttleInterval
+        self.debouncerDelay = debouncerDelay
         self.interfaceExpiration = interfaceExpiration
         var group: DispatchGroup? = DispatchGroup()
         group?.enter()
@@ -79,15 +80,15 @@ public class NetworkChangeNotifier {
 }
 
 private extension NetworkChangeNotifier {
-    private func throtter(interval: SwiftyTimer.Interval) -> SwiftyTimer.Throttler {
-        if let throtter = self.throtter {
-            return throtter
+    private func debouncer(interval: SwiftyTimer.Interval) -> SwiftyTimer.Debouncer {
+        if let debouncer = self.debouncer {
+            return debouncer
         }
-        let throtter = Throttler(time: interval, queue: throttlerQueue, mode: .fixed, immediateFire: false) { [weak self] in
+        let debouncer = SwiftyTimer.Debouncer(interval) { [weak self] in
             self?.handleNetworkChange()
         }
-        self.throtter = throtter
-        return throtter
+        self.debouncer = debouncer
+        return debouncer
     }
 
     private func updateInterface(_ interface: NetworkInterface?, ignoreNotify: Bool) {
@@ -114,8 +115,8 @@ private extension NetworkChangeNotifier {
 
         currentInterface = interface
         guard shouldTriggerNotify else { return }
-        if let throttleInterval = throttleInterval {
-            throtter(interval: throttleInterval).call()
+        if let debouncerDelay = debouncerDelay {
+            debouncer(interval: debouncerDelay).call()
         } else {
             handleNetworkChange()
         }

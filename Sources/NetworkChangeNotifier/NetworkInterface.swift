@@ -16,7 +16,7 @@ public struct NetworkInterface: Equatable {
     public var ipAddress: String?
     public var timestamp: TimeInterval = 0
 
-    var descriptionMap: [String: String] {
+    public var descriptionMap: [String: String] {
         [
             "interface": primaryInterface ?? "",
             "ipAddress": ipAddress ?? "",
@@ -24,7 +24,7 @@ public struct NetworkInterface: Equatable {
         ]
     }
 
-    init?(primaryInterface: String? = nil, ipAddress: String? = nil) {
+    public init?(primaryInterface: String? = nil, ipAddress: String? = nil) {
         guard let primaryInterface else { return nil }
         self.primaryInterface = primaryInterface
         self.ipAddress = ipAddress

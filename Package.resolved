@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "swiftytimer",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/codingiran/SwiftyTimer.git",
+      "state" : {
+        "revision" : "02e9f7932c3fd857d16fdf46257642ca56e533f9",
+        "version" : "1.0.0"
+      }
+    }
+  ],
+  "version" : 2
+}

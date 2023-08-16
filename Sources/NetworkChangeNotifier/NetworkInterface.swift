@@ -101,3 +101,15 @@ public extension NetworkInterface {
 }
 
 #endif
+
+#if canImport(CoreWLAN)
+
+import CoreWLAN
+
+public extension NetworkInterface {
+    static func currentWifiSSID() -> String? {
+        return CWWiFiClient.shared().interface()?.ssid()
+    }
+}
+
+#endif

@@ -11,28 +11,23 @@ import Foundation
 
 import Network
 
-public struct NetworkInterface: Equatable {
-    public var primaryInterface: String?
-    public var ipAddress: String?
-    public var timestamp: TimeInterval = 0
+public struct NetworkInterface: Equatable, Codable {
+    public var bsdName: String
+    public var displayName: String?
+    public var hardMAC: String?
+    public var kind: String?
+    public var address: String?
+    public var timestamp = Date().timeIntervalSince1970
 
-    public var descriptionMap: [String: String] {
-        [
-            "interface": primaryInterface ?? "",
-            "ipAddress": ipAddress ?? "",
-            "timestamp": "\(timestamp)"
-        ]
-    }
-
-    public init?(primaryInterface: String? = nil, ipAddress: String? = nil) {
-        guard let primaryInterface else { return nil }
-        self.primaryInterface = primaryInterface
-        self.ipAddress = ipAddress
-        self.timestamp = Date().timeIntervalSince1970
+    public var descriptionMap: [String: Any]? {
+        guard let data = try? JSONEncoder().encode(self),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return json
     }
 
     public static func == (lhs: NetworkInterface, rhs: NetworkInterface) -> Bool {
-        return lhs.primaryInterface == rhs.primaryInterface && lhs.ipAddress == rhs.ipAddress
+        return lhs.bsdName == rhs.bsdName && lhs.address == rhs.address
     }
 }
 
@@ -57,7 +52,7 @@ public extension NetworkInterface {
                 return iPv6List.first
             }
         }()
-        self.init(primaryInterface: interfaceName, ipAddress: ipAddress)
+        self.init(bsdName: interfaceName, address: ipAddress)
     }
 }
 
@@ -107,9 +102,38 @@ public extension NetworkInterface {
 import CoreWLAN
 
 public extension NetworkInterface {
-    static func currentWifiSSID() -> String? {
-        return CWWiFiClient.shared().interface()?.ssid()
+    static func currentWifiSSID() -> String? { CWWiFiClient.shared().interface()?.ssid() }
+
+    static func wifiSSID(withInterface interfaceName: String) -> String? { CWWiFiClient.shared().interface(withName: interfaceName)?.ssid() }
+
+    var wifiSSID: String? { NetworkInterface.wifiSSID(withInterface: bsdName) }
+}
+
+#endif
+
+#if canImport(SystemConfiguration)
+
+import SystemConfiguration
+
+public extension NetworkInterface {
+    static func all() -> [NetworkInterface] {
+        let interfaces = SCNetworkInterfaceCopyAll()
+        var instances: [NetworkInterface] = []
+        for interfaceRef in interfaces {
+            let interface = interfaceRef as! SCNetworkInterface
+            guard let bsdName = SCNetworkInterfaceGetBSDName(interface) else { continue }
+            guard let displayName = SCNetworkInterfaceGetLocalizedDisplayName(interface) else { continue }
+            guard let hardMAC = SCNetworkInterfaceGetHardwareAddressString(interface) else { continue }
+            guard let type = SCNetworkInterfaceGetInterfaceType(interface) else { continue }
+            let instance = NetworkInterface(bsdName: bsdName as String, displayName: displayName as String, hardMAC: hardMAC as String, kind: type as String)
+            instances.append(instance)
+        }
+        return instances
     }
+
+    static func displayName(with bsdName: String) -> String? { all().first(where: { $0.bsdName == bsdName })?.displayName }
+
+    static func hardMAC(with bsdName: String) -> String? { all().first(where: { $0.bsdName == bsdName })?.hardMAC }
 }
 
 #endif

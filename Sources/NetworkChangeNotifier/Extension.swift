@@ -77,3 +77,19 @@ public extension SCNetworkReachabilityFlags {
 }
 
 #endif
+
+extension CFArray: Sequence {
+    public func makeIterator() -> AnyIterator<AnyObject> {
+        var index = -1
+        let maxIndex = CFArrayGetCount(self)
+        return AnyIterator {
+            index += 1
+            guard index < maxIndex else {
+                return nil
+            }
+            let unmanagedObject: UnsafeRawPointer = CFArrayGetValueAtIndex(self, index)
+            let rec = unsafeBitCast(unmanagedObject, to: AnyObject.self)
+            return rec
+        }
+    }
+}

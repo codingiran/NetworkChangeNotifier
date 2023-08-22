@@ -99,6 +99,8 @@ public extension NetworkInterface {
 
 #if canImport(CoreWLAN)
 
+#if os(macOS)
+
 import CoreWLAN
 
 public extension NetworkInterface {
@@ -111,7 +113,11 @@ public extension NetworkInterface {
 
 #endif
 
+#endif
+
 #if canImport(SystemConfiguration)
+
+#if os(macOS)
 
 import SystemConfiguration
 
@@ -135,5 +141,7 @@ public extension NetworkInterface {
 
     static func hardMAC(with bsdName: String) -> String? { all().first(where: { $0.bsdName == bsdName })?.hardMAC }
 }
+
+#endif
 
 #endif

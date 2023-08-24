@@ -12,8 +12,8 @@ import Foundation
 #error("NetworkChangeNotifier doesn't support Swift versions below 5.5.")
 #endif
 
-/// Current NetworkChangeNotifier version 0.0.7. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
-public let version = "0.0.7"
+/// Current NetworkChangeNotifier version 0.0.8. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
+public let version = "0.0.8"
 
 #if canImport(Network)
 
@@ -21,7 +21,7 @@ import Network
 import SwiftyTimer
 
 public protocol NetworkChangeNotifierDelegate: AnyObject {
-    func networkChangeNotifier(shouldNotify newInterface: NetworkInterface?, currentInterface: NetworkInterface?) -> Bool
+    func shouldChangeBetween(newInterface: NetworkInterface?, currentInterface: NetworkInterface?) -> Bool
 }
 
 public class NetworkChangeNotifier {
@@ -30,6 +30,8 @@ public class NetworkChangeNotifier {
     public weak var delegate: NetworkChangeNotifierDelegate?
 
     public var currentInterface: NetworkInterface?
+
+    private var tempInterface: NetworkInterface?
 
     public var currentBSDName: String? { currentInterface?.bsdName }
 
@@ -53,7 +55,7 @@ public class NetworkChangeNotifier {
         group?.enter()
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let interface = NetworkInterface(path: path)
-            self?.updateInterface(interface, ignoreNotify: group != nil)
+            self?.updateInterface(interface, fromInit: group != nil)
             group?.leave()
             group = nil
         }
@@ -88,30 +90,12 @@ private extension NetworkChangeNotifier {
         return debouncer
     }
 
-    private func updateInterface(_ interface: NetworkInterface?, ignoreNotify: Bool) {
-        let shouldTriggerNotify: Bool = {
-            if ignoreNotify {
-                return false
-            }
-            if let delegate = self.delegate {
-                return delegate.networkChangeNotifier(shouldNotify: interface, currentInterface: currentInterface)
-            }
-            if interface != currentInterface {
-                return true
-            }
-            if let interfaceExpiration = self.interfaceExpiration,
-               let interface = interface,
-               let currentInterface = currentInterface,
-               abs(interface.timestamp - currentInterface.timestamp) > interfaceExpiration
-            {
-                return true
-            }
-
-            return false
-        }()
-
-        currentInterface = interface
-        guard shouldTriggerNotify else { return }
+    private func updateInterface(_ interface: NetworkInterface?, fromInit: Bool) {
+        tempInterface = interface
+        guard !fromInit else {
+            currentInterface = tempInterface
+            return
+        }
         if let debouncerDelay = debouncerDelay {
             debouncer(interval: debouncerDelay).call()
         } else {
@@ -120,7 +104,24 @@ private extension NetworkChangeNotifier {
     }
 
     private func handleNetworkChange() {
-        guard let networkChange = networkChange else { return }
+        let shouldTriggerNotify: Bool = {
+            if let delegate = self.delegate {
+                return delegate.shouldChangeBetween(newInterface: tempInterface, currentInterface: currentInterface)
+            }
+            if tempInterface != currentInterface {
+                return true
+            }
+            if let interfaceExpiration = self.interfaceExpiration,
+               let tempInterface = self.tempInterface,
+               let currentInterface = self.currentInterface,
+               abs(tempInterface.timestamp - currentInterface.timestamp) > interfaceExpiration
+            {
+                return true
+            }
+            return false
+        }()
+        currentInterface = tempInterface
+        guard shouldTriggerNotify, let networkChange = networkChange else { return }
         handlerQueue.async { networkChange(self.currentInterface) }
     }
 }

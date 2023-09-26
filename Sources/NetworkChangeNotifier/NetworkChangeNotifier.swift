@@ -76,6 +76,25 @@ public class NetworkChangeNotifier {
     public func stop() {
         networkChange = nil
     }
+
+    public var currentPath: NWPath {
+        pathMonitor.currentPath
+    }
+
+    public var availableInterfaces: [NWInterface] {
+        guard currentPath.status != .unsatisfied else { return [] }
+        return currentPath.availableInterfaces
+    }
+
+    public var usesInterfaces: [NWInterface] {
+        availableInterfaces.filter { self.currentPath.usesInterfaceType($0.type) }
+    }
+}
+
+public extension Array where Element == NWInterface {
+    var bsdNames: [String] {
+        map(\.name)
+    }
 }
 
 private extension NetworkChangeNotifier {

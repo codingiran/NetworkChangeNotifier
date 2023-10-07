@@ -12,8 +12,8 @@ import Foundation
 #error("NetworkChangeNotifier doesn't support Swift versions below 5.5.")
 #endif
 
-/// Current NetworkChangeNotifier version 0.0.9. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
-public let version = "0.0.9"
+/// Current NetworkChangeNotifier version 0.1.0. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
+public let version = "0.1.0"
 
 #if canImport(Network)
 
@@ -35,7 +35,7 @@ public class NetworkChangeNotifier {
 
     public var currentBSDName: String? { currentInterface?.bsdName }
 
-    private var networkChange: NetworkChangeNotifier.NetworkChangeHandler?
+    private var networkChangeHandler: NetworkChangeNotifier.NetworkChangeHandler?
 
     private let pathMonitor = Network.NWPathMonitor()
 
@@ -51,30 +51,24 @@ public class NetworkChangeNotifier {
         self.handlerQueue = queue
         self.debouncerDelay = debouncerDelay
         self.interfaceExpiration = interfaceExpiration
-        var group: DispatchGroup? = DispatchGroup()
-        group?.enter()
         pathMonitor.pathUpdateHandler = { [weak self] path in
-            let interface = NetworkInterface(path: path)
-            self?.updateInterface(interface, fromInit: group != nil)
-            group?.leave()
-            group = nil
+            self?.updateInterface(NetworkInterface(path: path))
         }
         pathMonitor.start(queue: handlerQueue)
-        _ = group?.wait(timeout: .now() + 0.5)
     }
 
     deinit {
-        networkChange = nil
+        stop()
         pathMonitor.cancel()
     }
 
-    public func start(change: NetworkChangeNotifier.NetworkChangeHandler? = nil) {
+    public func start(change: @escaping NetworkChangeNotifier.NetworkChangeHandler) {
         stop()
-        networkChange = change
+        networkChangeHandler = change
     }
 
     public func stop() {
-        networkChange = nil
+        networkChangeHandler = nil
     }
 
     public var currentPath: NWPath {
@@ -109,9 +103,9 @@ private extension NetworkChangeNotifier {
         return debouncer
     }
 
-    private func updateInterface(_ interface: NetworkInterface?, fromInit: Bool) {
+    private func updateInterface(_ interface: NetworkInterface?) {
         tempInterface = interface
-        guard !fromInit else {
+        guard let _ = networkChangeHandler else {
             currentInterface = tempInterface
             return
         }
@@ -140,8 +134,8 @@ private extension NetworkChangeNotifier {
             return false
         }()
         currentInterface = tempInterface
-        guard shouldTriggerNotify, let networkChange = networkChange else { return }
-        handlerQueue.async { networkChange(self.currentInterface) }
+        guard shouldTriggerNotify, let networkChangeHandler = networkChangeHandler else { return }
+        handlerQueue.async { networkChangeHandler(self.currentInterface) }
     }
 }
 

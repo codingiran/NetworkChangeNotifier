@@ -1,12 +1,21 @@
 {
   "pins" : [
     {
+      "identity" : "locking",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/codingiran/Locking.git",
+      "state" : {
+        "revision" : "62827f93297bc860df1b0532b06173c64facaa22",
+        "version" : "0.0.1"
+      }
+    },
+    {
       "identity" : "swiftytimer",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/codingiran/SwiftyTimer.git",
       "state" : {
-        "revision" : "1c45379685acd87578a293ddb0d3a4edaa50d101",
-        "version" : "1.0.1"
+        "branch" : "develop",
+        "revision" : "7ec10f40a1067b8c14c168ae3271d9d6a5c7d62d"
       }
     }
   ],

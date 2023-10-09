@@ -19,8 +19,8 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-//        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "1.1.0")),
-        .package(url: "https://github.com/codingiran/SwiftyTimer.git", branch: "develop"),
+        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "1.1.1")),
+//        .package(url: "https://github.com/codingiran/SwiftyTimer.git", branch: "develop"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.

@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/codingiran/SwiftyTimer.git",
       "state" : {
-        "branch" : "develop",
-        "revision" : "e9382b5ef9cc214020c2da7c5edb87da1a17ee9a"
+        "revision" : "800644e683c3fe7ad7e5979629bc9b6af3a4d704",
+        "version" : "1.1.1"
       }
     }
   ],

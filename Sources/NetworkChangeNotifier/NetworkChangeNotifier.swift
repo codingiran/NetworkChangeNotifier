@@ -12,8 +12,8 @@ import Foundation
 #error("NetworkChangeNotifier doesn't support Swift versions below 5.5.")
 #endif
 
-/// Current NetworkChangeNotifier version 0.1.2. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
-public let version = "0.1.2"
+/// Current NetworkChangeNotifier version 0.1.3. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
+public let version = "0.1.3"
 
 #if canImport(Network)
 
@@ -41,6 +41,8 @@ public class NetworkChangeNotifier {
 
     private var handlerQueue: DispatchQueue
 
+    private let pathMonitorQueue = DispatchQueue(label: "com.networkChangeNotifier.pathMonitor")
+
     private var debouncer: SwiftyTimer.Debouncer?
 
     private var debouncerDelay: SwiftyTimer.Interval?
@@ -54,7 +56,7 @@ public class NetworkChangeNotifier {
         pathMonitor.pathUpdateHandler = { [weak self] path in
             self?.updateInterface(NetworkInterface(path: path))
         }
-        pathMonitor.start(queue: handlerQueue)
+        pathMonitor.start(queue: pathMonitorQueue)
     }
 
     deinit {

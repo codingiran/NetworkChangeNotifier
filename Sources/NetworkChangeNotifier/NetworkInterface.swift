@@ -15,8 +15,9 @@ public struct NetworkInterface: Equatable, Codable {
     public var bsdName: String
     public var displayName: String?
     public var hardMAC: String?
-    public var kind: String?
     public var address: String?
+    public var kind: String?
+    public var type: NetworkInterface.InterfaceType
     public var timestamp = Date().timeIntervalSince1970
 
     public var descriptionMap: [String: Any]? {
@@ -52,7 +53,36 @@ public extension NetworkInterface {
                 return iPv6List.first
             }
         }()
-        self.init(bsdName: interfaceName, address: ipAddress)
+        let type = NetworkInterface.InterfaceType(type: interface.type)
+        self.init(bsdName: interfaceName, address: ipAddress, type: type)
+    }
+}
+
+public extension NetworkInterface {
+    enum InterfaceType: String, Codable {
+        case wifi
+        case cellular
+        case wiredEthernet
+        case bluetooth
+        case loopback
+        case other
+
+        init(type: NWInterface.InterfaceType) {
+            switch type {
+            case .wifi:
+                self = .wifi
+            case .cellular:
+                self = .cellular
+            case .wiredEthernet:
+                self = .wiredEthernet
+            case .loopback:
+                self = .loopback
+            case .other:
+                self = .other
+            @unknown default:
+                self = .other
+            }
+        }
     }
 }
 
@@ -117,9 +147,9 @@ public extension NetworkInterface {
 
 #if canImport(SystemConfiguration)
 
-#if os(macOS)
-
 import SystemConfiguration
+
+#if os(macOS)
 
 public extension NetworkInterface {
     static func all() -> [NetworkInterface] {
@@ -130,8 +160,9 @@ public extension NetworkInterface {
             guard let bsdName = SCNetworkInterfaceGetBSDName(interface) else { continue }
             guard let displayName = SCNetworkInterfaceGetLocalizedDisplayName(interface) else { continue }
             guard let hardMAC = SCNetworkInterfaceGetHardwareAddressString(interface) else { continue }
-            guard let type = SCNetworkInterfaceGetInterfaceType(interface) else { continue }
-            let instance = NetworkInterface(bsdName: bsdName as String, displayName: displayName as String, hardMAC: hardMAC as String, kind: type as String)
+            guard let kind = SCNetworkInterfaceGetInterfaceType(interface) else { continue }
+            let type = NetworkInterface.InterfaceType(kind: kind as String)
+            let instance = NetworkInterface(bsdName: bsdName as String, displayName: displayName as String, hardMAC: hardMAC as String, kind: kind as String, type: type)
             instances.append(instance)
         }
         return instances
@@ -140,6 +171,25 @@ public extension NetworkInterface {
     static func displayName(with bsdName: String) -> String? { all().first(where: { $0.bsdName == bsdName })?.displayName }
 
     static func hardMAC(with bsdName: String) -> String? { all().first(where: { $0.bsdName == bsdName })?.hardMAC }
+}
+
+public extension NetworkInterface.InterfaceType {
+    init(kind: String?) {
+        guard let kind = kind as CFString? else {
+            self = .other
+            return
+        }
+        switch kind {
+        case kSCNetworkInterfaceTypeEthernet:
+            self = .wiredEthernet
+        case kSCNetworkInterfaceTypeIEEE80211, kSCNetworkInterfaceTypeWWAN:
+            self = .wifi
+        case kSCNetworkInterfaceTypeBluetooth:
+            self = .bluetooth
+        default:
+            self = .other
+        }
+    }
 }
 
 #endif

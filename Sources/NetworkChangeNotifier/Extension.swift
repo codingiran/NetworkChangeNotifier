@@ -55,6 +55,25 @@ public extension Network.NWEndpoint.Host {
     }
 }
 
+public extension Network.NWInterface.InterfaceType {
+    var name: String {
+        switch self {
+        case .other:
+            return "other"
+        case .wifi:
+            return "wifi"
+        case .cellular:
+            return "cellular"
+        case .wiredEthernet:
+            return "wiredEthernet"
+        case .loopback:
+            return "loopback"
+        @unknown default:
+            return "other"
+        }
+    }
+}
+
 #endif
 
 #if canImport(SystemConfiguration)

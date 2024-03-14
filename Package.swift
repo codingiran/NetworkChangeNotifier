@@ -19,7 +19,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "1.1.1")),
+        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "1.1.2")),
 //        .package(url: "https://github.com/codingiran/SwiftyTimer.git", branch: "develop"),
     ],
     targets: [
@@ -29,5 +29,7 @@ let package = Package(
             name: "NetworkChangeNotifier",
             dependencies: [
                 "SwiftyTimer",
-            ]),
+            ],
+            path: "Sources",
+            resources: [.copy("Resources/PrivacyInfo.xcprivacy")]),
     ])

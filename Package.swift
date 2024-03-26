@@ -19,7 +19,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "1.1.2")),
+        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "2.0.0")),
 //        .package(url: "https://github.com/codingiran/SwiftyTimer.git", branch: "develop"),
     ],
     targets: [

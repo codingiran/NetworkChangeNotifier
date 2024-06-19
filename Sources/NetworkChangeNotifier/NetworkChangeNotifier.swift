@@ -12,8 +12,8 @@ import Foundation
 #error("NetworkChangeNotifier doesn't support Swift versions below 5.5.")
 #endif
 
-/// Current NetworkChangeNotifier version 0.2.1. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
-public let version = "0.2.1"
+/// Current NetworkChangeNotifier version 0.2.2. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
+public let version = "0.2.2"
 
 #if canImport(Network)
 
@@ -131,10 +131,6 @@ private extension NetworkChangeNotifier {
             currentInterface = tempInterface
             return
         }
-        if updateStrategy.ignoreFirstUpdate, !didIgnoreFirstUpdate {
-            didIgnoreFirstUpdate = true
-            return
-        }
         if let debouncerDelay = updateStrategy.debouncerDelay {
             debouncer(interval: debouncerDelay).call()
         } else {
@@ -144,6 +140,10 @@ private extension NetworkChangeNotifier {
 
     private func handleNetworkChange() {
         let shouldTriggerNotify: Bool = {
+            if self.updateStrategy.ignoreFirstUpdate, !self.didIgnoreFirstUpdate {
+                self.didIgnoreFirstUpdate = true
+                return false
+            }
             if let delegate = self.delegate {
                 return delegate.shouldChangeBetween(newInterface: tempInterface, currentInterface: currentInterface)
             }

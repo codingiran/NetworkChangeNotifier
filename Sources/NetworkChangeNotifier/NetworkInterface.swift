@@ -6,10 +6,14 @@
 //
 
 import Foundation
-
-#if canImport(Network)
-
 import Network
+#if canImport(CoreWLAN)
+import CoreWLAN
+#endif
+#if canImport(SystemConfiguration)
+import SystemConfiguration
+import SystemConfiguration.CaptiveNetwork
+#endif
 
 public struct NetworkInterface: Equatable, Codable {
     public var bsdName: String
@@ -125,33 +129,56 @@ public extension NetworkInterface {
     }
 }
 
-#endif
-
-#if canImport(CoreWLAN)
-
-#if os(macOS)
-
-import CoreWLAN
-
 public extension NetworkInterface {
-    static func currentWifiSSID() -> String? { CWWiFiClient.shared().interface()?.ssid() }
+    @available(macOS 10.15, *)
+    @available(iOS 13.0, *)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
+    static func currentWifiSSID() -> String? {
+        #if os(macOS)
+        return CWWiFiClient.shared().interface()?.ssid()
+        #elseif os(iOS)
+        var ssid: String?
+        if let interfaces = CNCopySupportedInterfaces() as NSArray? {
+            for interface in interfaces {
+                if let interfaceInfo = CNCopyCurrentNetworkInfo(interface as! CFString) as NSDictionary? {
+                    ssid = interfaceInfo[kCNNetworkInfoKeySSID as String] as? String
+                    break
+                }
+            }
+        }
+        return ssid
+        #else
+        return nil
+        #endif
+    }
 
-    static func wifiSSID(withInterface interfaceName: String) -> String? { CWWiFiClient.shared().interface(withName: interfaceName)?.ssid() }
+    @available(macOS 10.15, *)
+    @available(iOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
+    static func wifiSSID(withInterface interfaceName: String) -> String? {
+        #if os(macOS)
+        CWWiFiClient.shared().interface(withName: interfaceName)?.ssid()
+        #else
+        return nil
+        #endif
+    }
 
+    @available(macOS 10.15, *)
+    @available(iOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     var wifiSSID: String? { NetworkInterface.wifiSSID(withInterface: bsdName) }
 }
 
-#endif
-
-#endif
-
-#if canImport(SystemConfiguration)
-
-import SystemConfiguration
-
 #if os(macOS)
 
 public extension NetworkInterface {
+    @available(macOS 10.15, *)
+    @available(iOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     static func all() -> [NetworkInterface] {
         let interfaces = SCNetworkInterfaceCopyAll()
         var instances: [NetworkInterface] = []
@@ -174,6 +201,10 @@ public extension NetworkInterface {
 }
 
 public extension NetworkInterface.InterfaceType {
+    @available(macOS 10.15, *)
+    @available(iOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     init(kind: String?) {
         guard let kind = kind as CFString? else {
             self = .other
@@ -191,7 +222,5 @@ public extension NetworkInterface.InterfaceType {
         }
     }
 }
-
-#endif
 
 #endif

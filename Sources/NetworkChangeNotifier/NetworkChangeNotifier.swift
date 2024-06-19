@@ -12,8 +12,8 @@ import Foundation
 #error("NetworkChangeNotifier doesn't support Swift versions below 5.5.")
 #endif
 
-/// Current NetworkChangeNotifier version 0.2.0. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
-public let version = "0.2.0"
+/// Current NetworkChangeNotifier version 0.2.1. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
+public let version = "0.2.1"
 
 #if canImport(Network)
 

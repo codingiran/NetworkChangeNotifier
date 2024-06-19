@@ -24,6 +24,22 @@ public protocol NetworkChangeNotifierDelegate: AnyObject {
     func shouldChangeBetween(newInterface: NetworkInterface?, currentInterface: NetworkInterface?) -> Bool
 }
 
+public extension NetworkChangeNotifier {
+    struct UpdateStrategy {
+        let debouncerDelay: SwiftyTimer.Interval?
+        let interfaceExpiration: TimeInterval?
+        let ignoreFirstUpdate: Bool
+
+        public init(debouncerDelay: SwiftyTimer.Interval? = nil, interfaceExpiration: TimeInterval? = nil, ignoreFirstUpdate: Bool = false) {
+            self.debouncerDelay = debouncerDelay
+            self.interfaceExpiration = interfaceExpiration
+            self.ignoreFirstUpdate = ignoreFirstUpdate
+        }
+
+        public static var `default` = UpdateStrategy(debouncerDelay: nil, interfaceExpiration: nil, ignoreFirstUpdate: false)
+    }
+}
+
 public class NetworkChangeNotifier {
     public typealias NetworkChangeHandler = (NetworkInterface?) -> Void
 
@@ -45,18 +61,22 @@ public class NetworkChangeNotifier {
 
     private var debouncer: SwiftyTimer.Debouncer?
 
-    private var debouncerDelay: SwiftyTimer.Interval?
+    private let updateStrategy: UpdateStrategy
 
-    private var interfaceExpiration: TimeInterval?
+    private var didIgnoreFirstUpdate: Bool = false
 
-    public init(queue: DispatchQueue = .main, debouncerDelay: SwiftyTimer.Interval? = nil, interfaceExpiration: TimeInterval? = nil) {
+    public required init(queue: DispatchQueue = .main, updateStrategy: UpdateStrategy = .default) {
         self.handlerQueue = queue
-        self.debouncerDelay = debouncerDelay
-        self.interfaceExpiration = interfaceExpiration
+        self.updateStrategy = updateStrategy
         pathMonitor.pathUpdateHandler = { [weak self] path in
             self?.updateInterface(NetworkInterface(path: path))
         }
         pathMonitor.start(queue: pathMonitorQueue)
+    }
+
+    public convenience init(queue: DispatchQueue = .main, debouncerDelay: SwiftyTimer.Interval? = nil, interfaceExpiration: TimeInterval? = nil, ignoreFirstUpdate: Bool = false) {
+        let updateStrategy = UpdateStrategy(debouncerDelay: debouncerDelay, interfaceExpiration: interfaceExpiration, ignoreFirstUpdate: ignoreFirstUpdate)
+        self.init(queue: queue, updateStrategy: updateStrategy)
     }
 
     deinit {
@@ -111,7 +131,11 @@ private extension NetworkChangeNotifier {
             currentInterface = tempInterface
             return
         }
-        if let debouncerDelay = debouncerDelay {
+        if updateStrategy.ignoreFirstUpdate, !didIgnoreFirstUpdate {
+            didIgnoreFirstUpdate = true
+            return
+        }
+        if let debouncerDelay = updateStrategy.debouncerDelay {
             debouncer(interval: debouncerDelay).call()
         } else {
             handleNetworkChange()
@@ -123,10 +147,10 @@ private extension NetworkChangeNotifier {
             if let delegate = self.delegate {
                 return delegate.shouldChangeBetween(newInterface: tempInterface, currentInterface: currentInterface)
             }
-            if tempInterface != currentInterface {
+            if self.tempInterface != self.currentInterface {
                 return true
             }
-            if let interfaceExpiration = self.interfaceExpiration,
+            if let interfaceExpiration = self.updateStrategy.interfaceExpiration,
                let tempInterface = self.tempInterface,
                let currentInterface = self.currentInterface,
                abs(tempInterface.timestamp - currentInterface.timestamp) > interfaceExpiration

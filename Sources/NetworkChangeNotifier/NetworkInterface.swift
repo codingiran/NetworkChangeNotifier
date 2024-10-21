@@ -22,8 +22,6 @@ public struct NetworkInterface: Equatable, Codable {
     public var address: String?
     public var kind: String?
     public var type: NetworkInterface.InterfaceType
-    public var supportsIPv4: Bool?
-    public var supportsIPv6: Bool?
     public var timestamp = Date().timeIntervalSince1970
 
     public var descriptionMap: [String: Any]? {
@@ -60,7 +58,7 @@ public extension NetworkInterface {
             }
         }()
         let type = NetworkInterface.InterfaceType(type: interface.type)
-        self.init(bsdName: interfaceName, address: ipAddress, type: type, supportsIPv4: path.supportsIPv4, supportsIPv6: path.supportsIPv6)
+        self.init(bsdName: interfaceName, address: ipAddress, type: type)
     }
 }
 

@@ -19,7 +19,8 @@ public struct NetworkInterface: Equatable, Codable {
     public var bsdName: String
     public var displayName: String?
     public var hardMAC: String?
-    public var address: String?
+    public var address: IPEndpoint?
+    public var gateway: IPEndpoint?
     public var kind: String?
     public var type: NetworkInterface.InterfaceType
     public var timestamp = Date().timeIntervalSince1970
@@ -37,6 +38,17 @@ public struct NetworkInterface: Equatable, Codable {
 }
 
 public extension NetworkInterface {
+    struct IPEndpoint: Equatable, Codable {
+        public var iPv4Address: String?
+        public var iPv6Address: String?
+
+        public static func == (lhs: NetworkInterface.IPEndpoint, rhs: NetworkInterface.IPEndpoint) -> Bool {
+            return lhs.iPv4Address == rhs.iPv4Address && lhs.iPv6Address == rhs.iPv6Address
+        }
+    }
+}
+
+public extension NetworkInterface {
     init?(path: Network.NWPath) {
         // 可用的全部网卡
         let availableInterfaces = path.availableInterfaces
@@ -48,17 +60,10 @@ public extension NetworkInterface {
             return nil
         }
         let interfaceName = interface.name
-        let ipAddress: String? = NetworkInterface.getIPAddress(of: interfaceName) ?? {
-            let iPv4List = path.gateways.compactMap { $0.iPv4Address }
-            if !iPv4List.isEmpty {
-                return iPv4List.first
-            } else {
-                let iPv6List = path.gateways.compactMap { $0.iPv6Address }
-                return iPv6List.first
-            }
-        }()
+        let ipAddress = NetworkInterface.getIPAddress(of: interfaceName)
+        let gateway = NetworkInterface.getGateway(of: interfaceName)
         let type = NetworkInterface.InterfaceType(type: interface.type)
-        self.init(bsdName: interfaceName, address: ipAddress, type: type)
+        self.init(bsdName: interfaceName, address: ipAddress, gateway: gateway, type: type)
     }
 }
 
@@ -90,16 +95,19 @@ public extension NetworkInterface {
     }
 }
 
+// MARK: - Get IP Address
+
 public extension NetworkInterface {
     /// https://github.com/foxglove/foxglove-ios-bridge/blob/858be71d0365d02fc6ba5d4f1eb1f7c0e55b809d/WebSocketDemo-Shared/getIPAddresses.swift#L38
     /// https://developer.apple.com/forums/thread/128215
-    static func getIPAddress(of interfaceName: String?, allowIPV6: Bool = true) -> String? {
+    static func getIPAddress(of interfaceName: String?) -> NetworkInterface.IPEndpoint? {
         guard let interfaceName, interfaceName.count > 0 else { return nil }
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         defer { freeifaddrs(ifaddr) }
         guard getifaddrs(&ifaddr) == 0 else { return nil }
         var ptr = ifaddr
-        var ipv6: String?
+        var ipv4List: [String] = []
+        var ipv6List: [String] = []
         while ptr != nil {
             defer { ptr = ptr?.pointee.ifa_next }
             guard let interface = ptr?.pointee else { continue }
@@ -118,14 +126,125 @@ public extension NetworkInterface {
 
                     let ip = String(cString: hostname)
                     if addrFamily == UInt8(AF_INET) {
-                        return ip
-                    } else {
-                        ipv6 = "\(ip)"
+                        ipv4List.append(ip)
+                    } else if addrFamily == UInt8(AF_INET6) {
+                        ipv6List.append(ip)
                     }
                 }
             }
         }
-        return allowIPV6 ? ipv6 : nil
+        return NetworkInterface.IPEndpoint(iPv4Address: ipv4List.first, iPv6Address: ipv6List.first)
+    }
+}
+
+// MARK: - Get Gateway
+
+public extension NetworkInterface {
+    #if os(iOS)
+
+    private static let RTAX_GATEWAY = 1
+    private static let RTAX_MAX = 8
+
+    private struct rt_metrics {
+        public var rmx_locks: UInt32 /* Kernel leaves these values alone */
+        public var rmx_mtu: UInt32 /* MTU for this path */
+        public var rmx_hopcount: UInt32 /* max hops expected */
+        public var rmx_expire: Int32 /* lifetime for route, e.g. redirect */
+        public var rmx_recvpipe: UInt32 /* inbound delay-bandwidth product */
+        public var rmx_sendpipe: UInt32 /* outbound delay-bandwidth product */
+        public var rmx_ssthresh: UInt32 /* outbound gateway buffer limit */
+        public var rmx_rtt: UInt32 /* estimated round trip time */
+        public var rmx_rttvar: UInt32 /* estimated rtt variance */
+        public var rmx_pksent: UInt32 /* packets sent using this route */
+        public var rmx_state: UInt32 /* route state */
+        public var rmx_filler: (UInt32, UInt32, UInt32) /* will be used for TCP's peer-MSS cache */
+    }
+
+    private struct rt_msghdr2 {
+        public var rtm_msglen: u_short /* to skip over non-understood messages */
+        public var rtm_version: u_char /* future binary compatibility */
+        public var rtm_type: u_char /* message type */
+        public var rtm_index: u_short /* index for associated ifp */
+        public var rtm_flags: Int32 /* flags, incl. kern & message, e.g. DONE */
+        public var rtm_addrs: Int32 /* bitmask identifying sockaddrs in msg */
+        public var rtm_refcnt: Int32 /* reference count */
+        public var rtm_parentflags: Int32 /* flags of the parent route */
+        public var rtm_reserved: Int32 /* reserved field set to 0 */
+        public var rtm_use: Int32 /* from rtentry */
+        public var rtm_inits: UInt32 /* which metrics we are initializing */
+        public var rtm_rmx: rt_metrics /* metrics themselves */
+    }
+
+    #endif
+
+    static func getGateway(of interfaceName: String?) -> IPEndpoint? {
+        guard let interfaceName, interfaceName.count > 0 else { return nil }
+        let ipv4Gateway = getRouterAddressFromSysctl(bsd: interfaceName, ipv6: false)
+        let ipv6Gateway = getRouterAddressFromSysctl(bsd: interfaceName, ipv6: true)
+        return IPEndpoint(iPv4Address: ipv4Gateway, iPv6Address: ipv6Gateway)
+    }
+
+    private static func getRouterAddressFromSysctl(bsd: String, ipv6: Bool) -> String? {
+        var mib: [Int32] = [CTL_NET,
+                            PF_ROUTE,
+                            0,
+                            0,
+                            NET_RT_DUMP2,
+                            0]
+        let mibSize = u_int(mib.count)
+
+        var bufSize = 0
+        sysctl(&mib, mibSize, nil, &bufSize, nil, 0)
+
+        let buf = UnsafeMutablePointer<UInt8>.allocate(capacity: bufSize)
+        defer { buf.deallocate() }
+        buf.initialize(repeating: 0, count: bufSize)
+
+        guard sysctl(&mib, mibSize, buf, &bufSize, nil, 0) == 0 else { return nil }
+
+        // Routes
+        var next = buf
+        let lim = next.advanced(by: bufSize)
+        while next < lim {
+            let rtm = next.withMemoryRebound(to: rt_msghdr2.self, capacity: 1) { $0.pointee }
+            var ifname = [CChar](repeating: 0, count: Int(IFNAMSIZ + 1))
+            if_indextoname(UInt32(rtm.rtm_index), &ifname)
+
+            if String(cString: ifname) == bsd, let addr = getRouterAddressFromRTM(rtm, next, ipv6) {
+                return addr
+            }
+
+            next = next.advanced(by: Int(rtm.rtm_msglen))
+        }
+
+        return nil
+    }
+
+    private static func getRouterAddressFromRTM(_ rtm: rt_msghdr2, _ ptr: UnsafeMutablePointer<UInt8>, _ ipv6: Bool) -> String? {
+        var rawAddr = ptr.advanced(by: MemoryLayout<rt_msghdr2>.stride)
+
+        for idx in 0 ..< RTAX_MAX {
+            let sockAddr = rawAddr.withMemoryRebound(to: sockaddr.self, capacity: 1) { $0.pointee }
+
+            if (rtm.rtm_addrs & (1 << idx)) != 0 && idx == RTAX_GATEWAY {
+                let sa_family = Int32(sockAddr.sa_family)
+                if ipv6, sa_family == AF_INET6 {
+                    var sAddr6 = rawAddr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee }.sin6_addr
+                    var addrV6 = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+                    inet_ntop(AF_INET6, &sAddr6, &addrV6, socklen_t(INET6_ADDRSTRLEN))
+                    return String(cString: addrV6, encoding: .ascii)
+                }
+                if !ipv6, sa_family == AF_INET {
+                    let sAddr = rawAddr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee }.sin_addr
+                    // Take the first match, assuming its destination is "default"
+                    return String(cString: inet_ntoa(sAddr), encoding: .ascii)
+                }
+            }
+
+            rawAddr = rawAddr.advanced(by: Int(sockAddr.sa_len))
+        }
+
+        return nil
     }
 }
 
@@ -189,7 +308,9 @@ public extension NetworkInterface {
             guard let hardMAC = SCNetworkInterfaceGetHardwareAddressString(interface) else { continue }
             guard let kind = SCNetworkInterfaceGetInterfaceType(interface) else { continue }
             let type = NetworkInterface.InterfaceType(kind: kind as String)
-            let instance = NetworkInterface(bsdName: bsdName as String, displayName: displayName as String, hardMAC: hardMAC as String, kind: kind as String, type: type)
+            let address = NetworkInterface.getIPAddress(of: bsdName as String)
+            let gateway = NetworkInterface.getGateway(of: bsdName as String)
+            let instance = NetworkInterface(bsdName: bsdName as String, displayName: displayName as String, hardMAC: hardMAC as String, address: address, gateway: gateway, kind: kind as String, type: type)
             instances.append(instance)
         }
         return instances

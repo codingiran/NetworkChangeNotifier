@@ -140,7 +140,7 @@ public extension NetworkInterface {
 // MARK: - Get Gateway
 
 public extension NetworkInterface {
-    #if os(iOS)
+    #if os(iOS) || os(tvOS) || os(watchOS)
 
     private static let RTAX_GATEWAY = 1
     private static let RTAX_MAX = 8
@@ -184,6 +184,7 @@ public extension NetworkInterface {
         return IPEndpoint(iPv4Address: ipv4Gateway, iPv6Address: ipv6Gateway)
     }
 
+    /// https://github.com/OpenIntelWireless/HeliPort/blob/1c3fdb56a7edcd6a38df448fafa5102e3dfa26be/HeliPort/NetworkManager.swift#L333
     private static func getRouterAddressFromSysctl(bsd: String, ipv6: Bool) -> String? {
         var mib: [Int32] = [CTL_NET,
                             PF_ROUTE,

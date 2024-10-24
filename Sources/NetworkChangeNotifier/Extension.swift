@@ -97,7 +97,7 @@ public extension SCNetworkReachabilityFlags {
 
 #endif
 
-extension CFArray: Sequence {
+extension CFArray: @retroactive Sequence {
     public func makeIterator() -> AnyIterator<AnyObject> {
         var index = -1
         let maxIndex = CFArrayGetCount(self)

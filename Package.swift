@@ -10,6 +10,7 @@ let package = Package(
         .macOS(.v10_15),
         .tvOS(.v13),
         .watchOS(.v6),
+        .visionOS(.v1),
     ],
     products: [
         .library(
@@ -17,7 +18,7 @@ let package = Package(
             targets: ["NetworkChangeNotifier"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "2.0.2")),
+        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "2.0.4")),
     ],
     targets: [
         .target(

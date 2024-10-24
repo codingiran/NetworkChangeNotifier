@@ -14,8 +14,10 @@ final class NetworkChangeNotifierTests: XCTestCase {
         print("gateway v4: \(gateway?.iPv4Address ?? ""), v6: \(gateway?.iPv6Address ?? "")")
     }
     
+#if os(macOS)
     func testAll() throws {
         let all = NetworkInterface.all()
         print("all: \(all)")
     }
+#endif
 }

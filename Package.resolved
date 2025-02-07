@@ -1,13 +1,13 @@
 {
-  "originHash" : "eb082af30354a561565dbc6094168b1043316e66e02026213411ac9051a94aac",
+  "originHash" : "f992c504e13cb24cbc2ffcbaf723a68baee52f8ebc453d6e5b0e386c00d57472",
   "pins" : [
     {
       "identity" : "locking",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/codingiran/Locking.git",
       "state" : {
-        "revision" : "767e28c75308269c403c6795db148fc78a5b420d",
-        "version" : "0.0.4"
+        "revision" : "258222bf57c97b869bc032b68648b15e238452da",
+        "version" : "0.0.5"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/codingiran/SwiftyTimer.git",
       "state" : {
-        "revision" : "1db6b4791e873aa3996f1aa97b46a4f3e31f1878",
-        "version" : "2.0.4"
+        "revision" : "d743b76fd023db3d4b225550ad4577a860484863",
+        "version" : "2.0.5"
       }
     }
   ],

@@ -12,20 +12,20 @@ import Foundation
 #error("NetworkChangeNotifier doesn't support Swift versions below 5.5.")
 #endif
 
-/// Current NetworkChangeNotifier version 0.3.1. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
-public let version = "0.3.1"
+/// Current NetworkChangeNotifier version 0.3.2. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
+public let version = "0.3.2"
 
 #if canImport(Network)
 
 import Network
 import SwiftyTimer
 
-public protocol NetworkChangeNotifierDelegate: AnyObject {
+public protocol NetworkChangeNotifierDelegate: AnyObject, Sendable {
     func shouldChangeBetween(newInterface: NetworkInterface?, currentInterface: NetworkInterface?) -> Bool
 }
 
 public extension NetworkChangeNotifier {
-    struct UpdateStrategy {
+    struct UpdateStrategy: Sendable {
         let debouncerDelay: SwiftyTimer.Interval?
         let interfaceExpiration: TimeInterval?
         let ignoreFirstUpdate: Bool
@@ -36,12 +36,12 @@ public extension NetworkChangeNotifier {
             self.ignoreFirstUpdate = ignoreFirstUpdate
         }
 
-        public static var `default` = UpdateStrategy(debouncerDelay: nil, interfaceExpiration: nil, ignoreFirstUpdate: false)
+        public static let `default` = UpdateStrategy(debouncerDelay: nil, interfaceExpiration: nil, ignoreFirstUpdate: false)
     }
 }
 
-public class NetworkChangeNotifier {
-    public typealias NetworkChangeHandler = (NetworkInterface?) -> Void
+public class NetworkChangeNotifier: @unchecked Sendable {
+    public typealias NetworkChangeHandler = @Sendable (NetworkInterface?) -> Void
 
     public weak var delegate: NetworkChangeNotifierDelegate?
 

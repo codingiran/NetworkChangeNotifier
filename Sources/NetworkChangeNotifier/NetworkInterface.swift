@@ -15,7 +15,7 @@ import SystemConfiguration
 import SystemConfiguration.CaptiveNetwork
 #endif
 
-public struct NetworkInterface: Equatable, Codable {
+public struct NetworkInterface: Equatable, Codable, Sendable {
     public var bsdName: String
     public var displayName: String?
     public var hardMAC: String?
@@ -38,7 +38,7 @@ public struct NetworkInterface: Equatable, Codable {
 }
 
 public extension NetworkInterface {
-    struct IPEndpoint: Equatable, Codable {
+    struct IPEndpoint: Equatable, Codable, Sendable {
         public var iPv4Address: String?
         public var iPv6Address: String?
 
@@ -68,7 +68,7 @@ public extension NetworkInterface {
 }
 
 public extension NetworkInterface {
-    enum InterfaceType: String, Codable {
+    enum InterfaceType: String, Codable, Sendable {
         case wifi
         case cellular
         case wiredEthernet

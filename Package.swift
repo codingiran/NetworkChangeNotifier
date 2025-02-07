@@ -18,7 +18,7 @@ let package = Package(
             targets: ["NetworkChangeNotifier"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "2.0.4")),
+        .package(url: "https://github.com/codingiran/SwiftyTimer.git", .upToNextMajor(from: "2.0.5")),
     ],
     targets: [
         .target(

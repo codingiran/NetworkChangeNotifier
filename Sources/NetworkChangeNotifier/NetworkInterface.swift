@@ -15,40 +15,44 @@ import SystemConfiguration
 import SystemConfiguration.CaptiveNetwork
 #endif
 
-public struct NetworkInterface: Equatable, Codable, Sendable {
-    public var bsdName: String
-    public var displayName: String?
-    public var hardMAC: String?
-    public var address: IPEndpoint?
-    public var gateway: IPEndpoint?
-    public var kind: String?
-    public var type: NetworkInterface.InterfaceType
-    public var timestamp = Date().timeIntervalSince1970
+public extension NetworkChangeNotifier {
+    struct NetworkInterface: Equatable, Codable, Sendable {
+        public var bsdName: String
+        public var displayName: String?
+        public var hardMAC: String?
+        public var address: IPEndpoint?
+        public var gateway: IPEndpoint?
+        public var kind: String?
+        public var type: NetworkInterface.InterfaceType
+        public var timestamp = Date().timeIntervalSince1970
 
-    public var descriptionMap: [String: Any]? {
-        guard let data = try? JSONEncoder().encode(self),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { return nil }
-        return json
-    }
+        public var descriptionMap: [String: Any]? {
+            guard let data = try? JSONEncoder().encode(self),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { return nil }
+            return json
+        }
 
-    public static func == (lhs: NetworkInterface, rhs: NetworkInterface) -> Bool {
-        return lhs.bsdName == rhs.bsdName && lhs.address == rhs.address
+        public static func == (lhs: NetworkInterface, rhs: NetworkInterface) -> Bool {
+            return lhs.bsdName == rhs.bsdName && lhs.address == rhs.address
+        }
     }
 }
 
-public extension NetworkInterface {
+
+
+public extension NetworkChangeNotifier.NetworkInterface {
     struct IPEndpoint: Equatable, Codable, Sendable {
         public var iPv4Address: String?
         public var iPv6Address: String?
 
-        public static func == (lhs: NetworkInterface.IPEndpoint, rhs: NetworkInterface.IPEndpoint) -> Bool {
+        public static func == (lhs: NetworkChangeNotifier.NetworkInterface.IPEndpoint, rhs: NetworkChangeNotifier.NetworkInterface.IPEndpoint) -> Bool {
             return lhs.iPv4Address == rhs.iPv4Address && lhs.iPv6Address == rhs.iPv6Address
         }
     }
 }
 
-public extension NetworkInterface {
+public extension NetworkChangeNotifier.NetworkInterface {
     init?(path: Network.NWPath) {
         // 可用的全部网卡
         let availableInterfaces = path.availableInterfaces
@@ -60,14 +64,14 @@ public extension NetworkInterface {
             return nil
         }
         let interfaceName = interface.name
-        let ipAddress = NetworkInterface.getIPAddress(of: interfaceName)
-        let gateway = NetworkInterface.getGateway(of: interfaceName)
-        let type = NetworkInterface.InterfaceType(type: interface.type)
+        let ipAddress = NetworkChangeNotifier.NetworkInterface.getIPAddress(of: interfaceName)
+        let gateway = NetworkChangeNotifier.NetworkInterface.getGateway(of: interfaceName)
+        let type = NetworkChangeNotifier.NetworkInterface.InterfaceType(type: interface.type)
         self.init(bsdName: interfaceName, address: ipAddress, gateway: gateway, type: type)
     }
 }
 
-public extension NetworkInterface {
+public extension NetworkChangeNotifier.NetworkInterface {
     enum InterfaceType: String, Codable, Sendable {
         case wifi
         case cellular
@@ -97,10 +101,10 @@ public extension NetworkInterface {
 
 // MARK: - Get IP Address
 
-public extension NetworkInterface {
+public extension NetworkChangeNotifier.NetworkInterface {
     /// https://github.com/foxglove/foxglove-ios-bridge/blob/858be71d0365d02fc6ba5d4f1eb1f7c0e55b809d/WebSocketDemo-Shared/getIPAddresses.swift#L38
     /// https://developer.apple.com/forums/thread/128215
-    static func getIPAddress(of interfaceName: String?) -> NetworkInterface.IPEndpoint? {
+    static func getIPAddress(of interfaceName: String?) -> NetworkChangeNotifier.NetworkInterface.IPEndpoint? {
         guard let interfaceName, interfaceName.count > 0 else { return nil }
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         defer { freeifaddrs(ifaddr) }
@@ -133,13 +137,13 @@ public extension NetworkInterface {
                 }
             }
         }
-        return NetworkInterface.IPEndpoint(iPv4Address: ipv4List.first, iPv6Address: ipv6List.first)
+        return NetworkChangeNotifier.NetworkInterface.IPEndpoint(iPv4Address: ipv4List.first, iPv6Address: ipv6List.first)
     }
 }
 
 // MARK: - Get Gateway
 
-public extension NetworkInterface {
+public extension NetworkChangeNotifier.NetworkInterface {
     #if os(iOS) || os(tvOS) || os(watchOS)
 
     private static let RTAX_GATEWAY = 1
@@ -249,7 +253,7 @@ public extension NetworkInterface {
     }
 }
 
-public extension NetworkInterface {
+public extension NetworkChangeNotifier.NetworkInterface {
     @available(macOS 10.15, *)
     @available(iOS 13.0, *)
     @available(tvOS, unavailable)
@@ -289,29 +293,29 @@ public extension NetworkInterface {
     @available(iOS, unavailable)
     @available(tvOS, unavailable)
     @available(watchOS, unavailable)
-    var wifiSSID: String? { NetworkInterface.wifiSSID(withInterface: bsdName) }
+    var wifiSSID: String? { NetworkChangeNotifier.NetworkInterface.wifiSSID(withInterface: bsdName) }
 }
 
 #if os(macOS)
 
-public extension NetworkInterface {
+public extension NetworkChangeNotifier.NetworkInterface {
     @available(macOS 10.15, *)
     @available(iOS, unavailable)
     @available(tvOS, unavailable)
     @available(watchOS, unavailable)
-    static func all() -> [NetworkInterface] {
+    static func all() -> [NetworkChangeNotifier.NetworkInterface] {
         let interfaces = SCNetworkInterfaceCopyAll()
-        var instances: [NetworkInterface] = []
+        var instances: [NetworkChangeNotifier.NetworkInterface] = []
         for interfaceRef in interfaces {
             let interface = interfaceRef as! SCNetworkInterface
             guard let bsdName = SCNetworkInterfaceGetBSDName(interface) else { continue }
             guard let displayName = SCNetworkInterfaceGetLocalizedDisplayName(interface) else { continue }
             guard let hardMAC = SCNetworkInterfaceGetHardwareAddressString(interface) else { continue }
             guard let kind = SCNetworkInterfaceGetInterfaceType(interface) else { continue }
-            let type = NetworkInterface.InterfaceType(kind: kind as String)
-            let address = NetworkInterface.getIPAddress(of: bsdName as String)
-            let gateway = NetworkInterface.getGateway(of: bsdName as String)
-            let instance = NetworkInterface(bsdName: bsdName as String, displayName: displayName as String, hardMAC: hardMAC as String, address: address, gateway: gateway, kind: kind as String, type: type)
+            let type = NetworkChangeNotifier.NetworkInterface.InterfaceType(kind: kind as String)
+            let address = NetworkChangeNotifier.NetworkInterface.getIPAddress(of: bsdName as String)
+            let gateway = NetworkChangeNotifier.NetworkInterface.getGateway(of: bsdName as String)
+            let instance = NetworkChangeNotifier.NetworkInterface(bsdName: bsdName as String, displayName: displayName as String, hardMAC: hardMAC as String, address: address, gateway: gateway, kind: kind as String, type: type)
             instances.append(instance)
         }
         return instances
@@ -322,7 +326,7 @@ public extension NetworkInterface {
     static func hardMAC(with bsdName: String) -> String? { all().first(where: { $0.bsdName == bsdName })?.hardMAC }
 }
 
-public extension NetworkInterface.InterfaceType {
+public extension NetworkChangeNotifier.NetworkInterface.InterfaceType {
     @available(macOS 10.15, *)
     @available(iOS, unavailable)
     @available(tvOS, unavailable)
